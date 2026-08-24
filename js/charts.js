@@ -6,19 +6,21 @@
 
   function formatAxis(value) {
     if (value === 0) return "0";
-    if (value >= 1000) {
-      const thousands = value / 1000;
+    const sign = value < 0 ? "-" : "";
+    const abs = Math.abs(value);
+    if (abs >= 1000) {
+      const thousands = abs / 1000;
       const label = Number.isInteger(thousands)
         ? String(thousands)
         : String(Number(thousands.toFixed(1)));
-      return label + "K";
+      return sign + label + "K";
     }
-    return String(value);
+    return sign + String(abs);
   }
 
   function niceScale(maxValue) {
     if (!maxValue || maxValue <= 0) {
-      return { max: 10, ticks: [0, 5, 10] };
+      return { max: 10, step: 5, ticks: [0, 5, 10] };
     }
 
     const padded = maxValue * 1.08;
@@ -38,7 +40,35 @@
     for (let value = 0; value <= max + 1e-9; value += step) {
       ticks.push(value);
     }
-    return { max: max, ticks: ticks };
+    return { max: max, step: step, ticks: ticks };
+  }
+
+  function valueScale(items) {
+    let min = 0;
+    let max = 0;
+    items.forEach(function (item) {
+      min = Math.min(min, Number(item.value) || 0);
+      max = Math.max(max, Number(item.value) || 0);
+    });
+    if (min === 0 && max === 0) {
+      return { min: 0, max: 10, ticks: [0, 5, 10] };
+    }
+    const extent = Math.max(Math.abs(min), Math.abs(max));
+    const positive = niceScale(extent);
+    const ticks = [];
+    if (min >= 0) {
+      return { min: 0, max: positive.max, ticks: positive.ticks };
+    }
+    if (max <= 0) {
+      for (let value = -positive.max; value <= 0 + 1e-9; value += positive.step) {
+        ticks.push(value);
+      }
+      return { min: -positive.max, max: 0, ticks: ticks };
+    }
+    for (let value = -positive.max; value <= positive.max + 1e-9; value += positive.step) {
+      ticks.push(value);
+    }
+    return { min: -positive.max, max: positive.max, ticks: ticks };
   }
 
   function wrapText(ctx, text, maxWidth) {
@@ -204,21 +234,20 @@
       };
       const plotWidth = width - pad.left - pad.right;
       const plotHeight = height - pad.top - pad.bottom;
-      const maxValue = Math.max.apply(
-        null,
-        items.map(function (item) {
-          return item.value;
-        }).concat([0])
-      );
-      const scale = niceScale(maxValue);
+      const scale = valueScale(items);
+      const range = scale.max - scale.min || 1;
+
+      function yOf(value) {
+        return pad.top + ((scale.max - value) / range) * plotHeight;
+      }
 
       ctx.font = (narrow ? "10px" : "12px") + " Sarabun, sans-serif";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       scale.ticks.forEach(function (tick) {
-        const y = pad.top + plotHeight - (tick / scale.max) * plotHeight;
-        ctx.strokeStyle = "#EEF0F2";
-        ctx.lineWidth = 1;
+        const y = yOf(tick);
+        ctx.strokeStyle = tick === 0 ? "#D0D5DD" : "#EEF0F2";
+        ctx.lineWidth = tick === 0 ? 1.5 : 1;
         ctx.beginPath();
         ctx.moveTo(pad.left, y);
         ctx.lineTo(width - pad.right, y);
@@ -229,15 +258,17 @@
 
       const slot = plotWidth / items.length;
       const barWidth = Math.max(narrow ? 8 : 14, Math.min(48, slot * 0.52));
+      const zeroY = yOf(0);
 
       items.forEach(function (item, index) {
         const centerX = pad.left + slot * index + slot / 2;
-        const barHeight = scale.max ? (item.value / scale.max) * plotHeight : 0;
+        const valueY = yOf(item.value || 0);
         const x = centerX - barWidth / 2;
-        const y = pad.top + plotHeight - barHeight;
+        const barTop = Math.min(zeroY, valueY);
+        const barHeight = Math.abs(valueY - zeroY);
         ctx.fillStyle = colorFor(palette, index);
         ctx.globalAlpha = hoverIndex === index ? 0.82 : 1;
-        ctx.fillRect(x, y, barWidth, Math.max(barHeight, 0));
+        ctx.fillRect(x, barTop, barWidth, barHeight);
         ctx.globalAlpha = 1;
         ctx.fillStyle = "#667085";
         ctx.font = (narrow ? "10px" : "11px") + " Sarabun, sans-serif";

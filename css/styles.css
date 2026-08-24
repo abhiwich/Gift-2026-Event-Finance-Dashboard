@@ -54,10 +54,6 @@ h1 {
 }
 
 .header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
   margin-bottom: 28px;
 }
 
@@ -77,55 +73,9 @@ h1 {
   line-height: 1.4;
 }
 
-.date-wrap {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.date-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.date-button:focus-visible,
 .kpi-card:focus-within {
   outline: 2px solid #3b6ef5;
   outline-offset: 2px;
-}
-
-.chevron {
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid #667085;
-}
-
-.date-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  width: min(320px, 80vw);
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow);
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.45;
-  z-index: 5;
 }
 
 .status {
@@ -373,28 +323,8 @@ h1 {
     --section-gap: 16px;
   }
 
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   h1 {
     font-size: 22px;
-  }
-
-  .date-wrap,
-  .date-button {
-    width: 100%;
-  }
-
-  .date-button {
-    justify-content: space-between;
-  }
-
-  .date-popover {
-    left: 0;
-    right: 0;
-    width: auto;
   }
 
   .kpi-grid,

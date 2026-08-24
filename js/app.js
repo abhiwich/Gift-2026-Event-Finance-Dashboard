@@ -7,8 +7,6 @@
   const titleEl = document.getElementById("dashboard-title");
   const subtitleEl = document.getElementById("dashboard-subtitle");
   const statusEl = document.getElementById("status");
-  const dateButton = document.getElementById("date-filter");
-  const datePopover = document.getElementById("date-popover");
   const incomeEl = document.getElementById("kpi-income");
   const refundsEl = document.getElementById("kpi-refunds");
   const expenseEl = document.getElementById("kpi-expense");
@@ -141,29 +139,6 @@
     refresh();
     if (timer) window.clearInterval(timer);
     timer = window.setInterval(refresh, refreshMs);
-  }
-
-  function closeDatePopover() {
-    if (!datePopover || !dateButton) return;
-    datePopover.hidden = true;
-    dateButton.setAttribute("aria-expanded", "false");
-  }
-
-  if (dateButton && datePopover) {
-    dateButton.addEventListener("click", function (event) {
-      event.stopPropagation();
-      const willOpen = datePopover.hidden;
-      datePopover.hidden = !willOpen;
-      dateButton.setAttribute("aria-expanded", willOpen ? "true" : "false");
-    });
-    document.addEventListener("click", function (event) {
-      if (!datePopover.hidden && !datePopover.contains(event.target) && event.target !== dateButton) {
-        closeDatePopover();
-      }
-    });
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") closeDatePopover();
-    });
   }
 
   document.addEventListener("visibilitychange", function () {

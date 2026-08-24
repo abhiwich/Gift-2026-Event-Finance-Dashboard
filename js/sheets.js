@@ -107,14 +107,30 @@
     return text;
   }
 
-  function findRow(rows, needle, colIndex) {
+  const SECTION_ALIASES = {
+    "A. FINANCIAL OVERVIEW": ["FINANCIAL OVERVIEW", "FINANCIAL OVERVIEW"],
+    "B. INCOME BY SOURCE": ["INCOME BY SOURCE", "INCOME BY SOURCE"],
+    "C. EXPENSE BY TEAM": ["EXPENSE BY TEAM", "EXPENSE BY TEAM"],
+    "D. EXPENSE BY CATEGORY": ["EXPENSE BY CATEGORY", "EXPENSE BY CATEGORY"],
+    "E. RECENT TRANSACTIONS": ["RECENT TRANSACTIONS", "RECENT TRANSACTIONS"],
+  };
+
+  function headingMatches(cell, needle) {
+    const value = normalize(cell);
+    if (!value) return false;
     const target = normalize(needle);
+    const aliases = (SECTION_ALIASES[target] || []).concat([target]);
+    return aliases.some(function (alias) {
+      return value === alias || value.indexOf(alias) >= 0;
+    });
+  }
+
+  function findRow(rows, needle, colIndex) {
     for (let r = 0; r < rows.length; r += 1) {
       const start = colIndex == null ? 0 : colIndex;
       const end = colIndex == null ? Math.max((rows[r] || []).length, 1) : colIndex + 1;
       for (let c = start; c < end; c += 1) {
-        const value = normalize(cellAt(rows, r, c));
-        if (value === target || value.indexOf(target) === 0) return r;
+        if (headingMatches(cellAt(rows, r, c), needle)) return r;
       }
     }
     return -1;
@@ -145,15 +161,40 @@
     return items;
   }
 
+  const HEADER_ALIASES = {
+    TEAM: ["TEAM"],
+    TRANSFERRED: ["TRANSFERRED", "TRANSFERRED", "TOTAL PAYMENT"],
+    REFUNDED: ["REFUNDED", "REFUNDED"],
+    "NET SPENT": ["NET SPENT", "NET SPENT"],
+    CATEGORY: ["CATEGORY", "CATEGORY"],
+    AMOUNT: ["AMOUNT", "AMOUNT"],
+    SOURCE: ["SOURCE", "SOURCE"],
+    DATE: ["DATE", "DATE"],
+    DESCRIPTION: ["DESCRIPTION", "DESCRIPTION"],
+  };
+
+  function headerMatches(cell, name) {
+    const value = normalize(cell);
+    const key = normalize(name);
+    const aliases = HEADER_ALIASES[key] || [key];
+    return aliases.some(function (alias) {
+      if (value === alias) return true;
+      if (key === "TEAM" && value.indexOf("TEAM /") === 0) return true;
+      if (key === "SOURCE" && value.indexOf("SOURCE") >= 0 && value.indexOf("EXPENSE") < 0) {
+        return value === "SOURCE" || value.indexOf("TEAM / SOURCE") === 0;
+      }
+      return false;
+    });
+  }
+
   function headerIndex(row, names) {
     const map = {};
     names.forEach(function (name) {
       map[name] = -1;
     });
     (row || []).forEach(function (cell, index) {
-      const value = normalize(cell);
       names.forEach(function (name) {
-        if (map[name] === -1 && value.indexOf(normalize(name)) >= 0) {
+        if (map[name] === -1 && headerMatches(cell, name)) {
           map[name] = index;
         }
       });
@@ -174,10 +215,10 @@
       const cols = {};
       (rows[r] || []).forEach(function (cell, c) {
         const label = normalize(cell);
-        if (label === "TOTAL INCOME") cols.income = c;
-        if (label === "TEAM REFUNDS") cols.refunds = c;
-        if (label === "TOTAL EXPENSE") cols.expense = c;
-        if (label === "CURRENT BALANCE") cols.balance = c;
+        if (label === "TOTAL INCOME" || label === "TOTAL INCOME") cols.income = c;
+        if (label === "TEAM REFUNDS" || label === "TEAM REFUNDS") cols.refunds = c;
+        if (label === "TOTAL EXPENSE" || label === "TOTAL EXPENSE") cols.expense = c;
+        if (label === "CURRENT BALANCE" || label === "CURRENT BALANCE") cols.balance = c;
       });
       if (cols.income == null) continue;
 
@@ -247,12 +288,13 @@
           ? headers["TOTAL PAYMENT"]
           : 1;
     const refundedCol = headers.REFUNDED >= 0 ? headers.REFUNDED : -1;
-    const netCol = headers["NET SPENT"] >= 0 ? headers["NET SPENT"] : transferredCol;
+    const netCol = headers["NET SPENT"] >= 0 ? headers["NET SPENT"] : -1;
 
     const items = [];
     for (let r = headerRow + 1; r < rows.length; r += 1) {
       const name = cellAt(rows, r, nameCol);
       if (!name) continue;
+      if (/^[A-E]\.\s/.test(name)) break;
       if (isTotal(name)) break;
       const transferred = parseAmount(cellAt(rows, r, transferredCol)) || 0;
       const refunded = refundedCol >= 0 ? parseAmount(cellAt(rows, r, refundedCol)) || 0 : 0;
@@ -272,7 +314,11 @@
     const heading = findRow(rows, config.sections.category);
     if (heading >= 0) {
       const headingCol = (rows[heading] || []).findIndex(function (cell) {
-        return normalize(cell).indexOf("EXPENSE BY CATEGORY") >= 0;
+        const value = normalize(cell);
+        return (
+          value.indexOf("EXPENSE BY CATEGORY") >= 0 ||
+          value.indexOf("EXPENSE BY CATEGORY") >= 0
+        );
       });
       const col = headingCol >= 0 ? headingCol : 3;
       let headerRow = heading;
