@@ -155,4 +155,85 @@
   });
 
   startPolling();
+
+  (function setupPullToRefresh() {
+    const indicator = document.getElementById("pull-refresh");
+    if (!indicator) return;
+
+    const threshold = 72;
+    let startY = 0;
+    let pulling = false;
+    let distance = 0;
+    let armed = false;
+
+    function atTop() {
+      return (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+    }
+
+    function setPull(px, label) {
+      distance = Math.max(0, px);
+      indicator.style.height = Math.min(distance, 96) + "px";
+      indicator.style.paddingBottom = distance > 8 ? "10px" : "0";
+      indicator.textContent = label;
+      indicator.setAttribute("aria-hidden", distance > 0 ? "false" : "true");
+    }
+
+    function resetPull() {
+      pulling = false;
+      armed = false;
+      distance = 0;
+      indicator.style.height = "0px";
+      indicator.style.paddingBottom = "0";
+      indicator.setAttribute("aria-hidden", "true");
+    }
+
+    document.addEventListener(
+      "touchstart",
+      function (event) {
+        if (!event.touches || event.touches.length !== 1) return;
+        if (event.target.closest && event.target.closest(".table-wrap")) return;
+        if (!atTop()) {
+          pulling = false;
+          return;
+        }
+        startY = event.touches[0].clientY;
+        pulling = true;
+        armed = false;
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      "touchmove",
+      function (event) {
+        if (!pulling || !event.touches || event.touches.length !== 1) return;
+        const dy = event.touches[0].clientY - startY;
+        if (dy <= 0 || !atTop()) {
+          if (distance) setPull(0, "รูดลงเพื่อรีเฟรช");
+          return;
+        }
+        const px = Math.min(dy * 0.45, 96);
+        armed = px >= threshold;
+        setPull(px, armed ? "ปล่อยเพื่อรีเฟรช" : "รูดลงเพื่อรีเฟรช");
+        if (px > 12 && event.cancelable) event.preventDefault();
+      },
+      { passive: false }
+    );
+
+    document.addEventListener(
+      "touchend",
+      function () {
+        if (!pulling) return;
+        if (armed) {
+          setPull(Math.max(distance, 56), "กำลังรีเฟรช…");
+          window.location.reload();
+          return;
+        }
+        resetPull();
+      },
+      { passive: true }
+    );
+
+    document.addEventListener("touchcancel", resetPull, { passive: true });
+  })();
 })();
