@@ -13,6 +13,8 @@
   const balanceEl = document.getElementById("kpi-balance");
   const balanceNoteEl = document.getElementById("kpi-balance-note");
   const recentBody = document.getElementById("recent-body");
+  const showCategory = !document.querySelector(".chart-wide[hidden]");
+  const showRecent = !document.querySelector(".table-card[hidden]");
 
   const incomeChart = charts.createBarChart({
     canvas: document.getElementById("income-chart"),
@@ -33,13 +35,15 @@
     orientation: "horizontal",
   });
 
-  const categoryChart = charts.createBarChart({
-    canvas: document.getElementById("category-chart"),
-    legend: document.getElementById("category-legend"),
-    tooltip: document.getElementById("category-tooltip"),
-    srTable: document.getElementById("category-sr-table"),
-    palette: config.colors.category,
-  });
+  const categoryChart = showCategory
+    ? charts.createBarChart({
+        canvas: document.getElementById("category-chart"),
+        legend: document.getElementById("category-legend"),
+        tooltip: document.getElementById("category-tooltip"),
+        srTable: document.getElementById("category-sr-table"),
+        palette: config.colors.category,
+      })
+    : null;
 
   let hasData = false;
   let loading = false;
@@ -64,11 +68,12 @@
     balanceNoteEl.hidden = true;
     incomeChart.setData([]);
     teamChart.setData([]);
-    categoryChart.setData([]);
-    recentBody.innerHTML = "";
+    if (categoryChart) categoryChart.setData([]);
+    if (showRecent && recentBody) recentBody.innerHTML = "";
   }
 
   function renderRecent(rows) {
+    if (!recentBody) return;
     recentBody.innerHTML = "";
     if (!rows.length) {
       const empty = document.createElement("tr");
@@ -108,8 +113,8 @@
 
     incomeChart.setData(data.incomeBySource);
     teamChart.setData(data.expenseByTeam);
-    categoryChart.setData(data.expenseByCategory);
-    renderRecent(data.recent || []);
+    if (categoryChart) categoryChart.setData(data.expenseByCategory);
+    if (showRecent) renderRecent(data.recent || []);
     hasData = true;
   }
 
