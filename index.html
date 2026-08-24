@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
@@ -58,9 +58,9 @@
       <section class="chart-grid" aria-label="กราฟสรุป">
         <article class="chart-card">
           <h2>รายรับแยกประเภท</h2>
-          <p class="chart-hint">ไม่รวมเงินคืนจากทีม</p>
-          <div id="income-legend" class="legend"></div>
-          <div class="chart-stage">
+          <p class="chart-hint">ไม่รวมเงินคืนจากทีม · เรียงจากมากไปน้อย</p>
+          <div id="income-legend" class="legend" hidden></div>
+          <div class="chart-stage chart-stage-horizontal">
             <canvas id="income-chart" role="img" aria-labelledby="income-sr-title"></canvas>
             <div id="income-tooltip" class="chart-tooltip" hidden></div>
           </div>
@@ -78,9 +78,9 @@
 
         <article class="chart-card">
           <h2>รายจ่ายแยกตามทีม</h2>
-          <p class="chart-hint">ยอดใช้จริงหลังหักเงินคืน — แท่งลงหมายถึงคืนเงินมากกว่ายอดโอน</p>
-          <div id="team-legend" class="legend"></div>
-          <div class="chart-stage">
+          <p class="chart-hint">ยอดใช้จริงหลังหักเงินคืน · เรียงจากมากไปน้อย</p>
+          <div id="team-legend" class="legend" hidden></div>
+          <div class="chart-stage chart-stage-horizontal">
             <canvas id="team-chart" role="img" aria-labelledby="team-sr-title"></canvas>
             <div id="team-tooltip" class="chart-tooltip" hidden></div>
           </div>

@@ -20,6 +20,7 @@
     tooltip: document.getElementById("income-tooltip"),
     srTable: document.getElementById("income-sr-table"),
     palette: config.colors.income,
+    orientation: "horizontal",
   });
 
   const teamChart = charts.createBarChart({
@@ -29,6 +30,7 @@
     srTable: document.getElementById("team-sr-table"),
     palette: config.colors.team,
     mode: "team",
+    orientation: "horizontal",
   });
 
   const categoryChart = charts.createBarChart({

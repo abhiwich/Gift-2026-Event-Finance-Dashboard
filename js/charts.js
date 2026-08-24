@@ -71,6 +71,33 @@
     return { min: -positive.max, max: positive.max, ticks: ticks };
   }
 
+  function formatBarValue(value, compact) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    if (compact && Math.abs(value) >= 1000) return formatAxis(value);
+    return formatFull(value);
+  }
+
+  function sortByMagnitude(list) {
+    return (list || []).slice().sort(function (a, b) {
+      const diff = Math.abs(Number(b.value) || 0) - Math.abs(Number(a.value) || 0);
+      if (diff !== 0) return diff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "th");
+    });
+  }
+
+  function fillRoundRect(ctx, x, y, w, h, r) {
+    if (w <= 0 || h <= 0) return;
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   function wrapText(ctx, text, maxWidth) {
     const words = String(text).split(/\s+/);
     const lines = [];
@@ -109,6 +136,7 @@
   }
 
   function renderLegend(container, items, palette) {
+    if (!container) return;
     container.innerHTML = "";
     items.forEach(function (item, index) {
       const legendItem = document.createElement("span");
@@ -126,7 +154,9 @@
   }
 
   function renderSrTable(table, items, mode) {
+    if (!table) return;
     const tbody = table.querySelector("tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
     items.forEach(function (item) {
       const row = document.createElement("tr");
@@ -154,14 +184,49 @@
     const tooltip = options.tooltip;
     const palette = options.palette;
     const mode = options.mode || "simple";
+    const orientation = options.orientation || "vertical";
+    const barColor = options.barColor || "#3B82F6";
+    const textColor = "#1F2937";
     let items = [];
     let bars = [];
     let hoverIndex = -1;
 
+    function horizontalMetrics(width) {
+      const narrow = width < 520;
+      const nameSize = narrow ? 13 : 14;
+      const valueSize = narrow ? 14 : 15;
+      const nameGap = 6;
+      const barH = narrow ? 16 : 20;
+      const rowGap = 14;
+      const pad = { top: 8, right: 8, bottom: 8, left: 4 };
+      const rowH = nameSize + nameGap + barH + rowGap;
+      return {
+        narrow: narrow,
+        nameSize: nameSize,
+        valueSize: valueSize,
+        nameGap: nameGap,
+        barH: barH,
+        rowGap: rowGap,
+        pad: pad,
+        rowH: rowH,
+      };
+    }
+
     function layout() {
       const parent = canvas.parentElement;
       const cssWidth = Math.max(Math.floor(parent.clientWidth), 0);
-      const cssHeight = Math.max(Math.floor(canvas.clientHeight || 280), 160);
+      let cssHeight;
+      if (orientation === "horizontal") {
+        const metrics = horizontalMetrics(cssWidth);
+        cssHeight = Math.max(
+          140,
+          metrics.pad.top + Math.max(items.length, 1) * metrics.rowH + metrics.pad.bottom
+        );
+        const nextHeight = cssHeight + "px";
+        if (canvas.style.height !== nextHeight) canvas.style.height = nextHeight;
+      } else {
+        cssHeight = Math.max(Math.floor(canvas.clientHeight || 280), 160);
+      }
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.max(Math.round(cssWidth * dpr), 1);
       canvas.height = Math.max(Math.round(cssHeight * dpr), 1);
@@ -208,24 +273,66 @@
       tooltip.style.top = Math.min(Math.max(8, y), maxTop) + "px";
     }
 
-    function draw() {
-      const layoutResult = layout();
-      const ctx = layoutResult.ctx;
-      const width = layoutResult.width;
-      const height = layoutResult.height;
-      if (width < 32 || height < 32) return;
-      ctx.clearRect(0, 0, width, height);
-      bars = [];
+    function drawHorizontal(ctx, width, height) {
+      const metrics = horizontalMetrics(width);
+      const pad = metrics.pad;
+      const compact = width < 480;
+      ctx.font = "700 " + metrics.valueSize + "px Sarabun, sans-serif";
+      let maxLabelW = 0;
+      const labels = items.map(function (item) {
+        const text = formatBarValue(item.value, compact);
+        maxLabelW = Math.max(maxLabelW, ctx.measureText(text).width);
+        return text;
+      });
+      const valueGap = 8;
+      const barMax = Math.max(36, width - pad.left - pad.right - maxLabelW - valueGap);
+      let maxAbs = 0;
+      items.forEach(function (item) {
+        maxAbs = Math.max(maxAbs, Math.abs(Number(item.value) || 0));
+      });
+      const scale = maxAbs > 0 ? maxAbs : 1;
+      let y = pad.top;
 
-      if (!items.length) {
-        ctx.fillStyle = "#667085";
-        ctx.font = "13px Sarabun, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("ไม่มีข้อมูล", width / 2, height / 2);
-        return;
-      }
+      items.forEach(function (item, index) {
+        ctx.font = "500 " + metrics.nameSize + "px Sarabun, sans-serif";
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        let name = String(item.name || "");
+        const nameMax = Math.max(40, width - pad.left - pad.right);
+        if (ctx.measureText(name).width > nameMax) {
+          while (name.length > 1 && ctx.measureText(name + "…").width > nameMax) {
+            name = name.slice(0, -1);
+          }
+          name += "…";
+        }
+        ctx.fillText(name, pad.left, y);
 
-      const narrow = layoutResult.narrow;
+        const barY = y + metrics.nameSize + metrics.nameGap;
+        const barW = (Math.abs(Number(item.value) || 0) / scale) * barMax;
+        ctx.globalAlpha = hoverIndex === index ? 0.82 : 1;
+        ctx.fillStyle = barColor;
+        fillRoundRect(ctx, pad.left, barY, barW, metrics.barH, 4);
+        ctx.globalAlpha = 1;
+
+        ctx.font = "700 " + metrics.valueSize + "px Sarabun, sans-serif";
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(labels[index], pad.left + barW + valueGap, barY + metrics.barH / 2);
+
+        bars.push({
+          hitX: pad.left,
+          hitW: width - pad.left - pad.right,
+          hitY: y,
+          hitH: metrics.rowH,
+          index: index,
+        });
+        y += metrics.rowH;
+      });
+    }
+
+    function drawVertical(ctx, width, height, narrow) {
       const rotateLabels = items.length >= 6 && width < 680;
       const pad = {
         top: 12,
@@ -307,6 +414,31 @@
       });
     }
 
+    function draw() {
+      const layoutResult = layout();
+      const ctx = layoutResult.ctx;
+      const width = layoutResult.width;
+      const height = layoutResult.height;
+      if (width < 32 || height < 32) return;
+      ctx.clearRect(0, 0, width, height);
+      bars = [];
+
+      if (!items.length) {
+        ctx.fillStyle = textColor;
+        ctx.font = "13px Sarabun, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("ไม่มีข้อมูล", width / 2, height / 2);
+        return;
+      }
+
+      if (orientation === "horizontal") {
+        drawHorizontal(ctx, width, height);
+        return;
+      }
+      drawVertical(ctx, width, height, layoutResult.narrow);
+    }
+
     function hitTest(event) {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -371,9 +503,17 @@
 
     return {
       setData: function (nextItems) {
-        items = nextItems || [];
-        renderLegend(options.legend, items, palette);
-        renderSrTable(options.srTable, items, mode);
+        items = orientation === "horizontal" ? sortByMagnitude(nextItems) : nextItems || [];
+        if (options.legend) {
+          if (orientation === "horizontal") {
+            options.legend.hidden = true;
+            options.legend.innerHTML = "";
+          } else {
+            options.legend.hidden = false;
+            renderLegend(options.legend, items, palette);
+          }
+        }
+        if (options.srTable) renderSrTable(options.srTable, items, mode);
         draw();
       },
       redraw: draw,
