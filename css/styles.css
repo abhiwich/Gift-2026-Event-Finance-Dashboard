@@ -22,6 +22,11 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body {
   margin: 0;
@@ -41,7 +46,8 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: var(--page-pad-y) max(var(--page-pad-x), env(safe-area-inset-right))
-    var(--page-pad-y) max(var(--page-pad-x), env(safe-area-inset-left));
+    max(var(--page-pad-y), env(safe-area-inset-bottom))
+    max(var(--page-pad-x), env(safe-area-inset-left));
 }
 
 .header,
@@ -82,6 +88,7 @@ h1 {
   margin: -8px 0 20px;
   font-size: 14px;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .status-error {
@@ -111,6 +118,8 @@ h1 {
   margin: -4px 0 10px;
   color: var(--text-secondary);
   font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .kpi-card {
@@ -255,11 +264,14 @@ h1 {
 
 .table-wrap {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .recent-table {
   width: 100%;
+  min-width: 560px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -270,6 +282,14 @@ h1 {
   text-align: left;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.recent-table th:nth-child(1),
+.recent-table td:nth-child(1),
+.recent-table th:nth-child(4),
+.recent-table td:nth-child(4) {
+  white-space: nowrap;
 }
 
 .recent-table thead th {
@@ -314,6 +334,10 @@ h1 {
   .chart-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .chart-stage canvas {
+    height: 260px;
+  }
 }
 
 @media (max-width: 767px) {
@@ -334,6 +358,11 @@ h1 {
 
   .kpi-card {
     min-height: 84px;
+    padding: 14px 16px;
+  }
+
+  .kpi-value {
+    font-size: 26px;
   }
 
   .chart-card,
@@ -341,8 +370,67 @@ h1 {
     padding: 16px;
   }
 
+  .chart-card,
+  .chart-wide,
+  .table-card {
+    margin-bottom: 20px;
+  }
+
+  .chart-stage canvas {
+    height: 260px;
+  }
+
+  .chart-stage-wide canvas {
+    height: 280px;
+  }
+
+  .recent-table {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 479px) {
+  :root {
+    --page-pad-y: 16px;
+    --page-pad-x: 12px;
+    --section-gap: 12px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  .kpi-label,
+  .chart-card h2,
+  .table-card h2 {
+    font-size: 15px;
+  }
+
+  .kpi-caption {
+    font-size: 11px;
+  }
+
+  .kpi-value {
+    font-size: 24px;
+  }
+
+  .legend-item {
+    font-size: 11px;
+  }
+
   .chart-stage canvas,
   .chart-stage-wide canvas {
     height: 240px;
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-stage canvas,
+  .chart-stage-wide canvas {
+    height: 200px;
   }
 }

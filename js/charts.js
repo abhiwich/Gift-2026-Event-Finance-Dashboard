@@ -226,11 +226,12 @@
       }
 
       const narrow = layoutResult.narrow;
+      const rotateLabels = items.length >= 6 && width < 680;
       const pad = {
         top: 12,
         right: narrow ? 8 : 12,
-        bottom: narrow ? 72 : 58,
-        left: narrow ? 36 : 46,
+        bottom: rotateLabels ? 96 : narrow ? 76 : 58,
+        left: narrow ? 42 : 50,
       };
       const plotWidth = width - pad.left - pad.right;
       const plotHeight = height - pad.top - pad.bottom;
@@ -274,10 +275,28 @@
         ctx.font = (narrow ? "10px" : "11px") + " Sarabun, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const lines = wrapText(ctx, item.name, Math.max(slot - 4, 24));
-        lines.forEach(function (line, lineIndex) {
-          ctx.fillText(line, centerX, pad.top + plotHeight + 8 + lineIndex * (narrow ? 12 : 13));
-        });
+        if (rotateLabels) {
+          ctx.save();
+          ctx.translate(centerX, pad.top + plotHeight + 10);
+          ctx.rotate(-Math.PI / 3.2);
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          let label = String(item.name);
+          const maxW = 92;
+          if (ctx.measureText(label).width > maxW) {
+            while (label.length > 1 && ctx.measureText(label + "…").width > maxW) {
+              label = label.slice(0, -1);
+            }
+            label += "…";
+          }
+          ctx.fillText(label, 0, 0);
+          ctx.restore();
+        } else {
+          const lines = wrapText(ctx, item.name, Math.max(slot - 4, 24));
+          lines.forEach(function (line, lineIndex) {
+            ctx.fillText(line, centerX, pad.top + plotHeight + 8 + lineIndex * (narrow ? 12 : 13));
+          });
+        }
         bars.push({
           hitX: pad.left + slot * index,
           hitW: slot,
@@ -342,6 +361,10 @@
     }
 
     window.addEventListener("resize", requestDraw);
+    window.addEventListener("orientationchange", requestDraw);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", requestDraw);
+    }
     if (typeof ResizeObserver === "function") {
       new ResizeObserver(requestDraw).observe(canvas.parentElement);
     }
