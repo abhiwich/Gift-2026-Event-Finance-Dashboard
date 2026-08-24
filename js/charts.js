@@ -185,7 +185,6 @@
     const palette = options.palette;
     const mode = options.mode || "simple";
     const orientation = options.orientation || "vertical";
-    const barColor = options.barColor || "#3B82F6";
     const textColor = "#1F2937";
     let items = [];
     let bars = [];
@@ -311,7 +310,7 @@
         const barY = y + metrics.nameSize + metrics.nameGap;
         const barW = (Math.abs(Number(item.value) || 0) / scale) * barMax;
         ctx.globalAlpha = hoverIndex === index ? 0.82 : 1;
-        ctx.fillStyle = barColor;
+        ctx.fillStyle = colorFor(palette, index);
         fillRoundRect(ctx, pad.left, barY, barW, metrics.barH, 4);
         ctx.globalAlpha = 1;
 
