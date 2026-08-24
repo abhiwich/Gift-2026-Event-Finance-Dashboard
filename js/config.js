@@ -1,32 +1,41 @@
 /**
- * Spreadsheet connection and cell map.
- * Keep this file in sync with DESIGN_SPEC.md section 7.
+ * Spreadsheet connection, section labels, and cell fallbacks.
+ * Keep in sync with DESIGN_SPEC.md section 7.
  */
 window.DashboardConfig = {
   spreadsheetId: "1OQ8fC-vOglnPcy3aQKXOu743dX8YK2f9OovYg_8EjlA",
   gid: "0",
   sheetName: "01_Dashboard",
-  /**
-   * export CSV keeps empty rows and column positions required by the cell map.
-   * gviz CSV skips/merges header rows, so it is only a fallback.
-   */
   csvUrls: [
     "https://docs.google.com/spreadsheets/d/1OQ8fC-vOglnPcy3aQKXOu743dX8YK2f9OovYg_8EjlA/export?format=csv&gid=0",
     "https://docs.google.com/spreadsheets/d/1OQ8fC-vOglnPcy3aQKXOu743dX8YK2f9OovYg_8EjlA/gviz/tq?tqx=out:csv&gid=0",
   ],
-  cells: {
-    title: "A1",
-    income: "A6",
-    expense: "C6",
-    balance: "E6",
-  },
-  ranges: {
-    income: { startRow: 10, endRow: 15, nameCol: "A", valueCol: "B" },
-    expenseByTeam: { startRow: 20, endRow: 25, nameCol: "A", valueCol: "B" },
-  },
+  titleFallback: "งาน Gift โรงเรียนไตรพัฒน์ — เงินกองกลาง",
   refreshIntervalMs: 5000,
+  sections: {
+    overview: "A. Financial Overview",
+    income: "B. Income by Source",
+    team: "C. Expense by Team",
+    category: "D. Expense by Category",
+    recent: "E. Recent Transactions",
+  },
+  fallback: {
+    cells: {
+      title: "A1",
+      subtitle: "A2",
+      income: "A6",
+      refunds: "C6",
+      expense: "E6",
+      balance: "G6",
+    },
+    income: { startRow: 10, endRow: 16, nameCol: "A", valueCol: "B" },
+    team: { startRow: 21, endRow: 26 },
+    category: { startRow: 21, endRow: 28, nameCol: "F", valueCol: "G" },
+    recent: { startRow: 33, endRow: 42 },
+  },
   colors: {
-    income: ["#3B6EF5", "#F5A524", "#8B5CF6", "#84CC16", "#22D3EE", "#FACC15"],
-    expense: ["#3B6EF5", "#F5A524", "#8B5CF6", "#84CC16", "#22D3EE", "#FACC15"],
+    income: ["#3B6EF5", "#F5A524", "#8B5CF6", "#EC4899", "#84CC16", "#22D3EE", "#FACC15"],
+    team: ["#3B6EF5", "#F5A524", "#8B5CF6", "#84CC16", "#22D3EE", "#FACC15"],
+    category: ["#3B6EF5", "#F5A524", "#8B5CF6", "#EC4899", "#84CC16", "#22D3EE", "#FACC15", "#94A3B8"],
   },
 };

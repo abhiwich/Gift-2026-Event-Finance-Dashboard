@@ -51,13 +51,24 @@
     return index - 1;
   }
 
+  function cellAt(rows, rowIndex, colIndex) {
+    const row = rows[rowIndex];
+    if (!row) return "";
+    const value = row[colIndex];
+    return value == null ? "" : String(value).trim();
+  }
+
   function getCell(rows, a1) {
     const match = /^([A-Za-z]+)(\d+)$/.exec(String(a1 || "").trim());
     if (!match) return "";
-    const row = rows[Number(match[2]) - 1];
-    if (!row) return "";
-    const value = row[columnIndex(match[1])];
-    return value == null ? "" : String(value);
+    return cellAt(rows, Number(match[2]) - 1, columnIndex(match[1]));
+  }
+
+  function normalize(text) {
+    return String(text || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase();
   }
 
   function parseAmount(raw) {
@@ -72,16 +83,244 @@
     return Number.isFinite(number) ? number : null;
   }
 
-  function readSeries(rows, range) {
+  function pad2(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function formatDateParts(year, month, day) {
+    return pad2(day) + "/" + pad2(month) + "/" + year;
+  }
+
+  function parseDate(raw) {
+    if (raw == null || String(raw).trim() === "") return "";
+    const text = String(raw).trim();
+    const serial = Number(text.replace(/,/g, ""));
+    if (Number.isFinite(serial) && serial > 20000 && serial < 80000) {
+      const utc = Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000;
+      const date = new Date(utc);
+      return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+    }
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+    if (iso) return formatDateParts(iso[1], iso[2], iso[3]);
+    const dmy = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(text);
+    if (dmy) return formatDateParts(dmy[3], dmy[2], dmy[1]);
+    return text;
+  }
+
+  function findRow(rows, needle, colIndex) {
+    const target = normalize(needle);
+    for (let r = 0; r < rows.length; r += 1) {
+      const start = colIndex == null ? 0 : colIndex;
+      const end = colIndex == null ? Math.max((rows[r] || []).length, 1) : colIndex + 1;
+      for (let c = start; c < end; c += 1) {
+        const value = normalize(cellAt(rows, r, c));
+        if (value === target || value.indexOf(target) === 0) return r;
+      }
+    }
+    return -1;
+  }
+
+  function isTotal(name) {
+    return normalize(name) === "TOTAL";
+  }
+
+  function isRefundName(name) {
+    const value = normalize(name);
+    return value.indexOf("REFUND") >= 0 || value.indexOf("คืนเงิน") >= 0;
+  }
+
+  function readNamedSeries(rows, startRow, nameCol, valueCol, skipRefunds) {
     const items = [];
-    for (let rowNumber = range.startRow; rowNumber <= range.endRow; rowNumber += 1) {
-      const name = getCell(rows, range.nameCol + rowNumber).trim();
+    for (let r = startRow; r < rows.length; r += 1) {
+      const name = cellAt(rows, r, nameCol);
       if (!name) continue;
-      if (name.toUpperCase() === "TOTAL") break;
-      const value = parseAmount(getCell(rows, range.valueCol + rowNumber));
+      if (isTotal(name)) break;
+      if (skipRefunds && isRefundName(name)) continue;
+      const value = parseAmount(cellAt(rows, r, valueCol));
       items.push({
         name: name,
         value: value == null ? 0 : value,
+      });
+    }
+    return items;
+  }
+
+  function headerIndex(row, names) {
+    const map = {};
+    names.forEach(function (name) {
+      map[name] = -1;
+    });
+    (row || []).forEach(function (cell, index) {
+      const value = normalize(cell);
+      names.forEach(function (name) {
+        if (map[name] === -1 && value.indexOf(normalize(name)) >= 0) {
+          map[name] = index;
+        }
+      });
+    });
+    return map;
+  }
+
+  function readKpis(rows, config) {
+    const result = {
+      income: null,
+      refunds: 0,
+      expense: null,
+      balance: null,
+      hasRefundsColumn: false,
+    };
+
+    for (let r = 0; r < rows.length; r += 1) {
+      const cols = {};
+      (rows[r] || []).forEach(function (cell, c) {
+        const label = normalize(cell);
+        if (label === "TOTAL INCOME") cols.income = c;
+        if (label === "TEAM REFUNDS") cols.refunds = c;
+        if (label === "TOTAL EXPENSE") cols.expense = c;
+        if (label === "CURRENT BALANCE") cols.balance = c;
+      });
+      if (cols.income == null) continue;
+
+      const values = rows[r + 1] || [];
+      result.income = parseAmount(values[cols.income]);
+      result.expense = cols.expense != null ? parseAmount(values[cols.expense]) : null;
+      result.balance = cols.balance != null ? parseAmount(values[cols.balance]) : null;
+      if (cols.refunds != null) {
+        result.hasRefundsColumn = true;
+        result.refunds = parseAmount(values[cols.refunds]);
+        if (result.refunds == null) result.refunds = 0;
+      }
+      break;
+    }
+
+    if (result.income == null) {
+      result.income = parseAmount(getCell(rows, config.fallback.cells.income));
+      result.refunds = parseAmount(getCell(rows, config.fallback.cells.refunds));
+      result.expense = parseAmount(getCell(rows, config.fallback.cells.expense));
+      result.balance = parseAmount(getCell(rows, config.fallback.cells.balance));
+      result.hasRefundsColumn = result.refunds != null;
+      if (result.refunds == null) result.refunds = 0;
+    }
+
+    return result;
+  }
+
+  function readIncome(rows, config) {
+    const heading = findRow(rows, config.sections.income, 0);
+    if (heading >= 0) {
+      let headerRow = heading + 1;
+      while (headerRow < rows.length && !normalize(cellAt(rows, headerRow, 0))) {
+        headerRow += 1;
+      }
+      const headers = headerIndex(rows[headerRow], ["SOURCE", "AMOUNT"]);
+      const nameCol = headers.SOURCE >= 0 ? headers.SOURCE : 0;
+      const valueCol = headers.AMOUNT >= 0 ? headers.AMOUNT : 1;
+      return readNamedSeries(rows, headerRow + 1, nameCol, valueCol, true);
+    }
+    return readNamedSeries(
+      rows,
+      config.fallback.income.startRow - 1,
+      columnIndex(config.fallback.income.nameCol),
+      columnIndex(config.fallback.income.valueCol),
+      true
+    );
+  }
+
+  function readTeams(rows, config) {
+    const heading = findRow(rows, config.sections.team, 0);
+    let headerRow = heading >= 0 ? heading + 1 : config.fallback.team.startRow - 2;
+    while (headerRow < rows.length && !normalize(cellAt(rows, headerRow, 0))) {
+      headerRow += 1;
+    }
+    const headers = headerIndex(rows[headerRow], [
+      "TEAM",
+      "TRANSFERRED",
+      "REFUNDED",
+      "NET SPENT",
+      "TOTAL PAYMENT",
+    ]);
+    const nameCol = headers.TEAM >= 0 ? headers.TEAM : 0;
+    const transferredCol =
+      headers.TRANSFERRED >= 0
+        ? headers.TRANSFERRED
+        : headers["TOTAL PAYMENT"] >= 0
+          ? headers["TOTAL PAYMENT"]
+          : 1;
+    const refundedCol = headers.REFUNDED >= 0 ? headers.REFUNDED : -1;
+    const netCol = headers["NET SPENT"] >= 0 ? headers["NET SPENT"] : transferredCol;
+
+    const items = [];
+    for (let r = headerRow + 1; r < rows.length; r += 1) {
+      const name = cellAt(rows, r, nameCol);
+      if (!name) continue;
+      if (isTotal(name)) break;
+      const transferred = parseAmount(cellAt(rows, r, transferredCol)) || 0;
+      const refunded = refundedCol >= 0 ? parseAmount(cellAt(rows, r, refundedCol)) || 0 : 0;
+      const net = parseAmount(cellAt(rows, r, netCol));
+      const value = net == null ? transferred - refunded : net;
+      items.push({
+        name: name,
+        value: value,
+        transferred: transferred,
+        refunded: refunded,
+      });
+    }
+    return items;
+  }
+
+  function readCategories(rows, config) {
+    const heading = findRow(rows, config.sections.category);
+    if (heading >= 0) {
+      const headingCol = (rows[heading] || []).findIndex(function (cell) {
+        return normalize(cell).indexOf("EXPENSE BY CATEGORY") >= 0;
+      });
+      const col = headingCol >= 0 ? headingCol : 3;
+      let headerRow = heading;
+      if (normalize(cellAt(rows, heading, col)) !== "CATEGORY") {
+        headerRow = heading + 1;
+      }
+      const headers = headerIndex(rows[headerRow], ["CATEGORY", "AMOUNT"]);
+      const nameCol = headers.CATEGORY >= 0 ? headers.CATEGORY : col;
+      const valueCol = headers.AMOUNT >= 0 ? headers.AMOUNT : nameCol + 1;
+      return readNamedSeries(rows, headerRow + 1, nameCol, valueCol, false);
+    }
+    return readNamedSeries(
+      rows,
+      config.fallback.category.startRow - 1,
+      columnIndex(config.fallback.category.nameCol),
+      columnIndex(config.fallback.category.valueCol),
+      false
+    );
+  }
+
+  function readRecent(rows, config) {
+    const heading = findRow(rows, config.sections.recent, 0);
+    let headerRow = heading >= 0 ? heading + 1 : config.fallback.recent.startRow - 2;
+    while (headerRow < rows.length && !normalize(cellAt(rows, headerRow, 0))) {
+      headerRow += 1;
+    }
+    const headers = headerIndex(rows[headerRow], ["DATE", "TEAM", "SOURCE", "DESCRIPTION", "AMOUNT"]);
+    const dateCol = headers.DATE >= 0 ? headers.DATE : 0;
+    const teamCol = headers.TEAM >= 0 ? headers.TEAM : headers.SOURCE >= 0 ? headers.SOURCE : 1;
+    const descCol = headers.DESCRIPTION >= 0 ? headers.DESCRIPTION : 2;
+    const amountCol = headers.AMOUNT >= 0 ? headers.AMOUNT : 3;
+    const items = [];
+
+    for (let r = headerRow + 1; r < rows.length && items.length < 10; r += 1) {
+      const dateRaw = cellAt(rows, r, dateCol);
+      const desc = cellAt(rows, r, descCol);
+      if (!dateRaw) break;
+      if (
+        normalize(dateRaw).indexOf("วิธีใช้งาน") === 0 ||
+        normalize(dateRaw).indexOf("ตารางนี้") === 0
+      ) {
+        break;
+      }
+      items.push({
+        date: parseDate(dateRaw),
+        team: cellAt(rows, r, teamCol),
+        description: desc,
+        amount: parseAmount(cellAt(rows, r, amountCol)),
       });
     }
     return items;
@@ -92,38 +331,47 @@
     return start.startsWith("<!doctype") || start.startsWith("<html");
   }
 
+  function permissionError(message) {
+    const error = new Error(message || "PERMISSION");
+    error.code = "PERMISSION";
+    return error;
+  }
+
   function hasUsableData(data) {
-    return (
-      data.income != null &&
-      data.expense != null &&
-      data.incomeBySource.length > 0 &&
-      data.expenseByTeam.length > 0
-    );
+    return data.income != null && data.expense != null;
   }
 
   async function fetchCsv(url) {
     const separator = url.indexOf("?") >= 0 ? "&" : "?";
     const cacheBustUrl = url + separator + "_t=" + Date.now();
     const response = await fetch(cacheBustUrl, { cache: "no-store" });
+    if (response.status === 401 || response.status === 403) {
+      throw permissionError("HTTP " + response.status);
+    }
     if (!response.ok) {
       throw new Error("HTTP " + response.status);
     }
     const text = await response.text();
     if (!text.trim() || looksLikeHtml(text)) {
-      throw new Error("Did not receive CSV");
+      throw permissionError("Did not receive CSV");
     }
     return text;
   }
 
   function parseDashboard(csvText, config) {
     const rows = parseCsv(csvText);
+    const kpis = readKpis(rows, config);
     return {
-      title: getCell(rows, config.cells.title).trim(),
-      income: parseAmount(getCell(rows, config.cells.income)),
-      expense: parseAmount(getCell(rows, config.cells.expense)),
-      balance: parseAmount(getCell(rows, config.cells.balance)),
-      incomeBySource: readSeries(rows, config.ranges.income),
-      expenseByTeam: readSeries(rows, config.ranges.expenseByTeam),
+      title: getCell(rows, config.fallback.cells.title) || config.titleFallback,
+      subtitle: getCell(rows, config.fallback.cells.subtitle),
+      income: kpis.income,
+      refunds: kpis.refunds,
+      expense: kpis.expense,
+      balance: kpis.balance,
+      incomeBySource: readIncome(rows, config),
+      expenseByTeam: readTeams(rows, config),
+      expenseByCategory: readCategories(rows, config),
+      recent: readRecent(rows, config),
     };
   }
 
@@ -150,6 +398,7 @@
     parseCsv: parseCsv,
     getCell: getCell,
     parseAmount: parseAmount,
+    parseDate: parseDate,
     parseDashboard: parseDashboard,
     loadDashboard: loadDashboard,
   };

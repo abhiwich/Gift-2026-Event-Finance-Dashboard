@@ -4,10 +4,17 @@
   const charts = window.DashboardCharts;
   const refreshMs = config.refreshIntervalMs || 5000;
 
+  const titleEl = document.getElementById("dashboard-title");
+  const subtitleEl = document.getElementById("dashboard-subtitle");
   const statusEl = document.getElementById("status");
+  const dateButton = document.getElementById("date-filter");
+  const datePopover = document.getElementById("date-popover");
   const incomeEl = document.getElementById("kpi-income");
+  const refundsEl = document.getElementById("kpi-refunds");
   const expenseEl = document.getElementById("kpi-expense");
   const balanceEl = document.getElementById("kpi-balance");
+  const balanceNoteEl = document.getElementById("kpi-balance-note");
+  const recentBody = document.getElementById("recent-body");
 
   const incomeChart = charts.createBarChart({
     canvas: document.getElementById("income-chart"),
@@ -17,12 +24,21 @@
     palette: config.colors.income,
   });
 
-  const expenseChart = charts.createBarChart({
-    canvas: document.getElementById("expense-chart"),
-    legend: document.getElementById("expense-legend"),
-    tooltip: document.getElementById("expense-tooltip"),
-    srTable: document.getElementById("expense-sr-table"),
-    palette: config.colors.expense,
+  const teamChart = charts.createBarChart({
+    canvas: document.getElementById("team-chart"),
+    legend: document.getElementById("team-legend"),
+    tooltip: document.getElementById("team-tooltip"),
+    srTable: document.getElementById("team-sr-table"),
+    palette: config.colors.team,
+    mode: "team",
+  });
+
+  const categoryChart = charts.createBarChart({
+    canvas: document.getElementById("category-chart"),
+    legend: document.getElementById("category-legend"),
+    tooltip: document.getElementById("category-tooltip"),
+    srTable: document.getElementById("category-sr-table"),
+    palette: config.colors.category,
   });
 
   let hasData = false;
@@ -35,55 +51,86 @@
     statusEl.className = "status" + (kind ? " status-" + kind : "");
   }
 
-  function formatComma(value) {
+  function formatKpi(value) {
+    if (value == null) return "—";
     return Math.round(value).toLocaleString("en-US");
   }
 
-  function formatK(value) {
-    const thousands = value / 1000;
-    const rounded = Math.round(thousands * 10) / 10;
-    return (Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)) + "K";
+  function clearDashboard() {
+    incomeEl.textContent = "—";
+    refundsEl.textContent = "—";
+    expenseEl.textContent = "—";
+    balanceEl.textContent = "—";
+    balanceNoteEl.hidden = true;
+    incomeChart.setData([]);
+    teamChart.setData([]);
+    categoryChart.setData([]);
+    recentBody.innerHTML = "";
   }
 
-  function formatKpi(value) {
-    if (value == null) return "—";
-    if (value >= 100000) return formatK(value);
-    return formatComma(value);
+  function renderRecent(rows) {
+    recentBody.innerHTML = "";
+    if (!rows.length) {
+      const empty = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "ไม่มีรายการ";
+      empty.appendChild(cell);
+      recentBody.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (item) {
+      const row = document.createElement("tr");
+      [item.date, item.team, item.description, charts.formatFull(item.amount)].forEach(
+        function (text, index) {
+          const cell = document.createElement("td");
+          cell.textContent = text == null || text === "" ? "—" : text;
+          if (index === 3) cell.className = "num";
+          row.appendChild(cell);
+        }
+      );
+      recentBody.appendChild(row);
+    });
   }
 
   function render(data) {
-    if (data.title) document.title = data.title;
+    const title = data.title || config.titleFallback;
+    titleEl.textContent = title;
+    document.title = title;
+    subtitleEl.textContent = data.subtitle || "";
+    subtitleEl.hidden = !data.subtitle;
+
     incomeEl.textContent = formatKpi(data.income);
+    refundsEl.textContent = formatKpi(data.refunds);
     expenseEl.textContent = formatKpi(data.expense);
     balanceEl.textContent = formatKpi(data.balance);
+    balanceNoteEl.hidden = !(data.balance != null && data.balance < 0);
+
     incomeChart.setData(data.incomeBySource);
-    expenseChart.setData(data.expenseByTeam);
+    teamChart.setData(data.expenseByTeam);
+    categoryChart.setData(data.expenseByCategory);
+    renderRecent(data.recent || []);
     hasData = true;
   }
 
-  function showEmptyError() {
-    incomeEl.textContent = "—";
-    expenseEl.textContent = "—";
-    balanceEl.textContent = "—";
-    incomeChart.setData([]);
-    expenseChart.setData([]);
+  function showError() {
+    clearDashboard();
+    hasData = false;
     setStatus("ไม่สามารถอ่าน Google Sheets ได้", "error");
   }
 
   async function refresh() {
     if (loading || document.hidden) return;
     loading = true;
-    if (!hasData) {
-      setStatus("กำลังโหลดข้อมูล", "loading");
-    }
+    if (!hasData) setStatus("กำลังโหลดข้อมูล", "loading");
     try {
       const data = await sheets.loadDashboard(config);
       render(data);
       setStatus("");
     } catch (error) {
       console.error(error);
-      if (!hasData) {
-        showEmptyError();
+      if (!hasData || error.code === "PERMISSION") {
+        showError();
       }
     } finally {
       loading = false;
@@ -94,6 +141,29 @@
     refresh();
     if (timer) window.clearInterval(timer);
     timer = window.setInterval(refresh, refreshMs);
+  }
+
+  function closeDatePopover() {
+    if (!datePopover || !dateButton) return;
+    datePopover.hidden = true;
+    dateButton.setAttribute("aria-expanded", "false");
+  }
+
+  if (dateButton && datePopover) {
+    dateButton.addEventListener("click", function (event) {
+      event.stopPropagation();
+      const willOpen = datePopover.hidden;
+      datePopover.hidden = !willOpen;
+      dateButton.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+    document.addEventListener("click", function (event) {
+      if (!datePopover.hidden && !datePopover.contains(event.target) && event.target !== dateButton) {
+        closeDatePopover();
+      }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeDatePopover();
+    });
   }
 
   document.addEventListener("visibilitychange", function () {

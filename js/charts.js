@@ -1,5 +1,6 @@
 (function (global) {
   function formatFull(value) {
+    if (value == null || !Number.isFinite(value)) return "—";
     return Math.round(value).toLocaleString("en-US");
   }
 
@@ -94,7 +95,7 @@
     });
   }
 
-  function renderSrTable(table, items) {
+  function renderSrTable(table, items, mode) {
     const tbody = table.querySelector("tbody");
     tbody.innerHTML = "";
     items.forEach(function (item) {
@@ -102,10 +103,18 @@
       const nameCell = document.createElement("th");
       nameCell.scope = "row";
       nameCell.textContent = item.name;
-      const valueCell = document.createElement("td");
-      valueCell.textContent = formatFull(item.value);
       row.appendChild(nameCell);
-      row.appendChild(valueCell);
+      if (mode === "team") {
+        ["transferred", "refunded", "value"].forEach(function (key) {
+          const cell = document.createElement("td");
+          cell.textContent = formatFull(item[key]);
+          row.appendChild(cell);
+        });
+      } else {
+        const valueCell = document.createElement("td");
+        valueCell.textContent = formatFull(item.value);
+        row.appendChild(valueCell);
+      }
       tbody.appendChild(row);
     });
   }
@@ -114,6 +123,7 @@
     const canvas = options.canvas;
     const tooltip = options.tooltip;
     const palette = options.palette;
+    const mode = options.mode || "simple";
     let items = [];
     let bars = [];
     let hoverIndex = -1;
@@ -138,9 +148,26 @@
       const item = items[index];
       if (!item) return;
       tooltip.hidden = false;
-      tooltip.innerHTML = "<strong></strong><span></span>";
-      tooltip.querySelector("strong").textContent = item.name;
-      tooltip.querySelector("span").textContent = formatFull(item.value);
+      tooltip.innerHTML = "";
+      const title = document.createElement("strong");
+      title.textContent = item.name;
+      tooltip.appendChild(title);
+
+      if (mode === "team") {
+        [
+          ["โอน", item.transferred],
+          ["คืน", item.refunded],
+          ["สุทธิ", item.value],
+        ].forEach(function (pair) {
+          const line = document.createElement("span");
+          line.textContent = pair[0] + " " + formatFull(pair[1]);
+          tooltip.appendChild(line);
+        });
+      } else {
+        const line = document.createElement("span");
+        line.textContent = formatFull(item.value);
+        tooltip.appendChild(line);
+      }
 
       const wrapper = canvas.parentElement.getBoundingClientRect();
       const x = event.clientX - wrapper.left + 12;
@@ -156,14 +183,12 @@
       const ctx = layoutResult.ctx;
       const width = layoutResult.width;
       const height = layoutResult.height;
-      if (width < 32 || height < 32) {
-        return;
-      }
+      if (width < 32 || height < 32) return;
       ctx.clearRect(0, 0, width, height);
       bars = [];
 
       if (!items.length) {
-        ctx.fillStyle = "#6B7280";
+        ctx.fillStyle = "#667085";
         ctx.font = "13px Sarabun, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("ไม่มีข้อมูล", width / 2, height / 2);
@@ -183,7 +208,7 @@
         null,
         items.map(function (item) {
           return item.value;
-        })
+        }).concat([0])
       );
       const scale = niceScale(maxValue);
 
@@ -198,35 +223,31 @@
         ctx.moveTo(pad.left, y);
         ctx.lineTo(width - pad.right, y);
         ctx.stroke();
-        ctx.fillStyle = "#6B7280";
+        ctx.fillStyle = "#667085";
         ctx.fillText(formatAxis(tick), pad.left - 8, y);
       });
 
       const slot = plotWidth / items.length;
-      const barWidth = Math.max(narrow ? 10 : 16, Math.min(48, slot * 0.52));
+      const barWidth = Math.max(narrow ? 8 : 14, Math.min(48, slot * 0.52));
 
       items.forEach(function (item, index) {
         const centerX = pad.left + slot * index + slot / 2;
-        const barHeight = (item.value / scale.max) * plotHeight;
+        const barHeight = scale.max ? (item.value / scale.max) * plotHeight : 0;
         const x = centerX - barWidth / 2;
         const y = pad.top + plotHeight - barHeight;
         ctx.fillStyle = colorFor(palette, index);
         ctx.globalAlpha = hoverIndex === index ? 0.82 : 1;
         ctx.fillRect(x, y, barWidth, Math.max(barHeight, 0));
         ctx.globalAlpha = 1;
-        ctx.fillStyle = "#6B7280";
+        ctx.fillStyle = "#667085";
         ctx.font = (narrow ? "10px" : "11px") + " Sarabun, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const lines = wrapText(ctx, item.name, Math.max(slot - 4, 28));
+        const lines = wrapText(ctx, item.name, Math.max(slot - 4, 24));
         lines.forEach(function (line, lineIndex) {
           ctx.fillText(line, centerX, pad.top + plotHeight + 8 + lineIndex * (narrow ? 12 : 13));
         });
         bars.push({
-          x: x,
-          y: y,
-          w: barWidth,
-          h: Math.max(barHeight, 0),
           hitX: pad.left + slot * index,
           hitW: slot,
           hitY: pad.top,
@@ -242,11 +263,7 @@
       const y = event.clientY - rect.top;
       for (let i = 0; i < bars.length; i += 1) {
         const bar = bars[i];
-        const left = bar.hitX != null ? bar.hitX : bar.x;
-        const width = bar.hitW != null ? bar.hitW : bar.w;
-        const top = bar.hitY != null ? bar.hitY : bar.y;
-        const height = bar.hitH != null ? bar.hitH : bar.h;
-        if (x >= left && x <= left + width && y >= top && y <= top + height) {
+        if (x >= bar.hitX && x <= bar.hitX + bar.hitW && y >= bar.hitY && y <= bar.hitY + bar.hitH) {
           return bar.index;
         }
       }
@@ -302,7 +319,7 @@
       setData: function (nextItems) {
         items = nextItems || [];
         renderLegend(options.legend, items, palette);
-        renderSrTable(options.srTable, items);
+        renderSrTable(options.srTable, items, mode);
         draw();
       },
       redraw: draw,
@@ -311,5 +328,6 @@
 
   global.DashboardCharts = {
     createBarChart: createBarChart,
+    formatFull: formatFull,
   };
 })(window);

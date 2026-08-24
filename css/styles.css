@@ -1,15 +1,17 @@
 :root {
-  --bg-page: #f4f6f8;
+  --bg-page: #f4f1ea;
   --bg-card: #ffffff;
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b7280;
+  --text-primary: #1d2433;
+  --text-secondary: #667085;
   --text-on-dark: #ffffff;
   --border: #e5e7eb;
   --grid-line: #eef0f2;
   --shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
-  --income: #22a45a;
-  --expense: #f5c518;
-  --balance: #7ed6e8;
+  --navy: #1f4e5f;
+  --income: #2e7d4f;
+  --refunds: #c4a35a;
+  --expense: #b85c38;
+  --balance: #2a6f7f;
   --radius: 12px;
   --page-pad-y: 32px;
   --page-pad-x: 40px;
@@ -45,27 +47,85 @@ body {
 .header,
 .kpi-block,
 .chart-card,
+.table-card,
+.header-copy,
 h1 {
   min-width: 0;
 }
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 28px;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(20px, 2.4vw, 28px);
+  color: var(--navy);
+  font-size: clamp(22px, 2.4vw, 28px);
   line-height: 1.25;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
+.subtitle {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.date-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.date-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-button:focus-visible,
 .kpi-card:focus-within {
   outline: 2px solid #3b6ef5;
   outline-offset: 2px;
+}
+
+.chevron {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #667085;
+}
+
+.date-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(320px, 80vw);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  z-index: 5;
 }
 
 .status {
@@ -85,20 +145,27 @@ h1 {
 }
 
 .kpi-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 32px;
 }
 
 .kpi-label,
-.chart-card h2 {
+.chart-card h2,
+.table-card h2 {
   margin: 0 0 10px;
   font-size: 16px;
   font-weight: 600;
 }
 
+.chart-hint {
+  margin: -4px 0 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .kpi-card {
   min-height: 92px;
-  padding: 20px 24px;
+  padding: 16px 20px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -108,48 +175,60 @@ h1 {
   color: var(--text-on-dark);
 }
 
-.kpi-expense,
-.kpi-balance {
+.kpi-refunds {
+  background: var(--refunds);
   color: var(--text-primary);
 }
 
 .kpi-expense {
   background: var(--expense);
+  color: var(--text-on-dark);
 }
 
 .kpi-balance {
   background: var(--balance);
+  color: var(--text-on-dark);
 }
 
 .kpi-caption {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
+  letter-spacing: 0.02em;
   opacity: 0.86;
-}
-
-.kpi-income .kpi-caption {
-  color: rgba(255, 255, 255, 0.86);
 }
 
 .kpi-value {
   margin: 0;
-  font-size: clamp(28px, 3vw, 36px);
+  font-size: clamp(24px, 2.4vw, 32px);
   line-height: 1.1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
-.chart-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.kpi-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: 0.7;
 }
 
-.chart-card {
+.chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 32px;
+}
+
+.chart-card,
+.table-card {
   background: var(--bg-card);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px 24px;
+}
+
+.chart-wide,
+.table-card {
+  margin-bottom: 32px;
 }
 
 .legend {
@@ -193,10 +272,14 @@ h1 {
   touch-action: manipulation;
 }
 
+.chart-stage-wide canvas {
+  height: 260px;
+}
+
 .chart-tooltip {
   position: absolute;
-  min-width: 120px;
-  max-width: min(220px, calc(100% - 16px));
+  min-width: 140px;
+  max-width: min(240px, calc(100% - 16px));
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -220,6 +303,41 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.recent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.recent-table th,
+.recent-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.recent-table thead th {
+  background: var(--navy);
+  color: #fff;
+  font-weight: 600;
+}
+
+.recent-table tbody tr:nth-child(even) {
+  background: #f7f4ee;
+}
+
+.recent-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -232,24 +350,22 @@ h1 {
   border: 0;
 }
 
-/* Tablet: KPI ยัง 3 คอลัมน์ กราฟซ้อน 1 คอลัมน์ */
-@media (max-width: 1023px) {
+@media (max-width: 1199px) {
   :root {
     --page-pad-y: 28px;
     --page-pad-x: 24px;
     --section-gap: 20px;
   }
 
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chart-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .kpi-value {
-    font-size: 30px;
-  }
 }
 
-/* Mobile: header / KPI / กราฟ 1 คอลัมน์ */
 @media (max-width: 767px) {
   :root {
     --page-pad-y: 20px;
@@ -257,8 +373,28 @@ h1 {
     --section-gap: 16px;
   }
 
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   h1 {
     font-size: 22px;
+  }
+
+  .date-wrap,
+  .date-button {
+    width: 100%;
+  }
+
+  .date-button {
+    justify-content: space-between;
+  }
+
+  .date-popover {
+    left: 0;
+    right: 0;
+    width: auto;
   }
 
   .kpi-grid,
@@ -268,41 +404,15 @@ h1 {
 
   .kpi-card {
     min-height: 84px;
-    padding: 16px 18px;
   }
 
-  .kpi-value {
-    font-size: 32px;
-  }
-
-  .chart-card {
+  .chart-card,
+  .table-card {
     padding: 16px;
   }
 
-  .chart-card h2,
-  .kpi-label {
-    font-size: 15px;
-  }
-
-  .chart-stage canvas {
+  .chart-stage canvas,
+  .chart-stage-wide canvas {
     height: 240px;
-  }
-
-  .legend {
-    gap: 8px 12px;
-  }
-}
-
-@media (max-width: 380px) {
-  h1 {
-    font-size: 20px;
-  }
-
-  .kpi-value {
-    font-size: 28px;
-  }
-
-  .chart-stage canvas {
-    height: 220px;
   }
 }

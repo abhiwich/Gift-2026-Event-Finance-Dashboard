@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Gift 2026 Event Finance Dashboard</title>
+    <title>งาน Gift โรงเรียนไตรพัฒน์ — เงินกองกลาง</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,7 +15,26 @@
   <body>
     <div class="page">
       <header class="header">
-        <h1>Gift 2026 Event Finance Dashboard</h1>
+        <div class="header-copy">
+          <h1 id="dashboard-title">งาน Gift โรงเรียนไตรพัฒน์ — เงินกองกลาง</h1>
+          <p id="dashboard-subtitle" class="subtitle" hidden></p>
+        </div>
+        <div class="date-wrap">
+          <button
+            id="date-filter"
+            class="date-button"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="date-popover"
+          >
+            เลือกช่วงวันที่
+            <span class="chevron" aria-hidden="true"></span>
+          </button>
+          <div id="date-popover" class="date-popover" hidden role="dialog">
+            แสดงยอดทั้งกองจากชีต Dashboard — ยังไม่กรองวันที่
+          </div>
+        </div>
       </header>
 
       <div id="status" class="status" hidden></div>
@@ -24,22 +43,30 @@
         <article class="kpi-block">
           <h2 class="kpi-label">รายรับ</h2>
           <div class="kpi-card kpi-income">
-            <p class="kpi-caption">Total Income</p>
+            <p class="kpi-caption">TOTAL INCOME</p>
             <p id="kpi-income" class="kpi-value">—</p>
+          </div>
+        </article>
+        <article class="kpi-block">
+          <h2 class="kpi-label">คืนเงินจากทีม</h2>
+          <div class="kpi-card kpi-refunds">
+            <p class="kpi-caption">TEAM REFUNDS</p>
+            <p id="kpi-refunds" class="kpi-value">—</p>
           </div>
         </article>
         <article class="kpi-block">
           <h2 class="kpi-label">รายจ่าย</h2>
           <div class="kpi-card kpi-expense">
-            <p class="kpi-caption">Total Expense</p>
+            <p class="kpi-caption">TOTAL EXPENSE</p>
             <p id="kpi-expense" class="kpi-value">—</p>
           </div>
         </article>
         <article class="kpi-block">
           <h2 class="kpi-label">คงเหลือ</h2>
           <div class="kpi-card kpi-balance">
-            <p class="kpi-caption">Current Balance</p>
+            <p class="kpi-caption">CURRENT BALANCE</p>
             <p id="kpi-balance" class="kpi-value">—</p>
+            <p id="kpi-balance-note" class="kpi-note" hidden>ยอดติดลบ</p>
           </div>
         </article>
       </section>
@@ -47,6 +74,7 @@
       <section class="chart-grid" aria-label="กราฟสรุป">
         <article class="chart-card">
           <h2>รายรับแยกประเภท</h2>
+          <p class="chart-hint">ไม่รวมเงินคืนจากทีม</p>
           <div id="income-legend" class="legend"></div>
           <div class="chart-stage">
             <canvas id="income-chart" role="img" aria-labelledby="income-sr-title"></canvas>
@@ -66,22 +94,62 @@
 
         <article class="chart-card">
           <h2>รายจ่ายแยกตามทีม</h2>
-          <div id="expense-legend" class="legend"></div>
+          <p class="chart-hint">ยอดใช้จริงหลังหักเงินคืน</p>
+          <div id="team-legend" class="legend"></div>
           <div class="chart-stage">
-            <canvas id="expense-chart" role="img" aria-labelledby="expense-sr-title"></canvas>
-            <div id="expense-tooltip" class="chart-tooltip" hidden></div>
+            <canvas id="team-chart" role="img" aria-labelledby="team-sr-title"></canvas>
+            <div id="team-tooltip" class="chart-tooltip" hidden></div>
           </div>
-          <table id="expense-sr-table" class="sr-only">
-            <caption id="expense-sr-title">รายจ่ายแยกตามทีม</caption>
+          <table id="team-sr-table" class="sr-only">
+            <caption id="team-sr-title">รายจ่ายแยกตามทีม</caption>
             <thead>
               <tr>
                 <th scope="col">ทีม</th>
-                <th scope="col">จำนวน</th>
+                <th scope="col">โอน</th>
+                <th scope="col">คืน</th>
+                <th scope="col">สุทธิ</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </article>
+      </section>
+
+      <section class="chart-card chart-wide" aria-label="รายจ่ายแยกหมวด">
+        <h2>รายจ่ายแยกหมวด</h2>
+        <p class="chart-hint">คิดจากยอดโอน ไม่หักคืน</p>
+        <div id="category-legend" class="legend"></div>
+        <div class="chart-stage chart-stage-wide">
+          <canvas id="category-chart" role="img" aria-labelledby="category-sr-title"></canvas>
+          <div id="category-tooltip" class="chart-tooltip" hidden></div>
+        </div>
+        <table id="category-sr-table" class="sr-only">
+          <caption id="category-sr-title">รายจ่ายแยกหมวด</caption>
+          <thead>
+            <tr>
+              <th scope="col">หมวด</th>
+              <th scope="col">จำนวน</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section class="table-card" aria-label="รายการล่าสุด">
+        <h2>รายการล่าสุด</h2>
+        <div class="table-wrap">
+          <table class="recent-table">
+            <thead>
+              <tr>
+                <th scope="col">วันที่</th>
+                <th scope="col">ทีม / แหล่ง</th>
+                <th scope="col">รายละเอียด</th>
+                <th scope="col">จำนวน</th>
+              </tr>
+            </thead>
+            <tbody id="recent-body"></tbody>
+          </table>
+        </div>
       </section>
     </div>
 
