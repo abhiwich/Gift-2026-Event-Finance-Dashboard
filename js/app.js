@@ -13,6 +13,10 @@
   const balanceEl = document.getElementById("kpi-balance");
   const balanceNoteEl = document.getElementById("kpi-balance-note");
   const recentBody = document.getElementById("recent-body");
+  const versionEl = document.getElementById("app-version");
+  if (versionEl) {
+    versionEl.textContent = "เวอร์ชัน " + (config.version || "—");
+  }
   const showCategory = !document.querySelector(".chart-wide[hidden]");
   const showRecent = !document.querySelector(".table-card[hidden]");
 

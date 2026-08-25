@@ -3,14 +3,15 @@
  * Keep in sync with DESIGN_SPEC.md section 7.
  */
 window.DashboardConfig = {
-  spreadsheetId: "128yAOcyHdt-iciRHTZkkr5tzUhNe6PSQfGfqOwz-ero",
+  spreadsheetId: "1eMr-oGMc1WcreQ69h4V8MRkTBz4sEQ1j1t4vbUMLvuU",
   gid: "0",
   sheetName: "01_Dashboard",
   csvUrls: [
-    "https://docs.google.com/spreadsheets/d/128yAOcyHdt-iciRHTZkkr5tzUhNe6PSQfGfqOwz-ero/export?format=csv&gid=0",
-    "https://docs.google.com/spreadsheets/d/128yAOcyHdt-iciRHTZkkr5tzUhNe6PSQfGfqOwz-ero/gviz/tq?tqx=out:csv&gid=0",
+    "https://docs.google.com/spreadsheets/d/1eMr-oGMc1WcreQ69h4V8MRkTBz4sEQ1j1t4vbUMLvuU/export?format=csv&gid=0",
+    "https://docs.google.com/spreadsheets/d/1eMr-oGMc1WcreQ69h4V8MRkTBz4sEQ1j1t4vbUMLvuU/gviz/tq?tqx=out:csv&gid=0",
   ],
   titleFallback: "งาน Gift โรงเรียนไตรพัฒน์ — เงินกองกลาง",
+  version: "1.0.0",
   refreshIntervalMs: 5000,
   sections: {
     overview: "A. Financial Overview",

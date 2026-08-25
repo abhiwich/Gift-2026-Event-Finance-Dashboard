@@ -210,6 +210,19 @@ h1 {
   margin-bottom: 32px;
 }
 
+.page-footer {
+  margin-top: 8px;
+  padding-top: 16px;
+  text-align: center;
+}
+
+.page-footer p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
